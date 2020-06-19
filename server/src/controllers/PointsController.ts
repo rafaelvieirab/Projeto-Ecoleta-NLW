@@ -41,7 +41,9 @@ class PointsController {
         });
     
         await trx('point_item').insert(pointItems);
-    
+        
+        await trx.commit();
+        
         return response.json( {
             id: point_id,
             ...point
@@ -50,7 +52,7 @@ class PointsController {
 
     async show(request: Request, response: Response) {
         const { id } = request.params;
-            
+
         const point = await knex('point')
             .where('id',id)
             .first();
@@ -69,6 +71,24 @@ class PointsController {
         */
         
         return response.json( { point, items} );
+    }
+
+    async index(request: Request, response: Response) {
+        const { city, uf, items } = request.query;
+
+        const parsedItems = String(items)
+            .split(',')
+            .map(item => Number(item.trim()));
+        
+        const points = await knex('point')
+            .join('point_item','point_.id','=','point_item.point_id')
+            .whereIn('point_item.item_id', parsedItems)
+            .where('city',String(city))
+            .where('uf',String(uf))
+            .distinct()
+            .select('points.*');
+        
+        return response.json(points);
     }
 }
 
