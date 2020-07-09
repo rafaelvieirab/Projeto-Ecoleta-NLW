@@ -14,14 +14,10 @@ class PointsController {
             items
         } = request.body;
     
-        const trx = await knex.transaction(); 
-        /* trx => 
-            Só permite que os dados sejam salvas no banco de dados
-            se as duas inserções forem validas.
-        */
+        const trx = await knex.transaction();  // trx => Só permite que os dados sejam salvas no banco de dados se as duas inserções forem validas.
         
         const point = {
-            image: 'https://images.unsplash.com/photo-1556767576-5ec41e3239ea?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=crop&w=400&q=60',
+            image: request.file.filename,
             name,
             email,
             whatsapp,
@@ -33,7 +29,10 @@ class PointsController {
         const insertedIds = await trx('point').insert(point);
     
         const point_id = insertedIds[0];
-        const pointItems = items.map( (item_id: number) => {
+        const pointItems = items
+            .split(',')
+            .map( (item_id: string) => Number(item_id.trim()))
+            .map( (item_id: number) => {
             return {
                 item_id,
                 point_id
@@ -59,7 +58,12 @@ class PointsController {
         
         if( !point ) 
             return response.status(400).json( { message: 'Point not found!'} );
-        
+
+        const serializedPoints = {
+                ...point,
+                image_url: `http://192.168.1.113:3333/uploads/${point.image}`
+            };
+
         const items = await knex('item')
             .join('point_item', 'item.id', '=', 'point_item.item_id')
             .where('point_item.point_id', id)
@@ -70,7 +74,7 @@ class PointsController {
                 WHERE point_item.point_id = { id };
         */
         
-        return response.json( { point, items} );
+        return response.json({ point: serializedPoints, items});
     }
 
     async index(request: Request, response: Response) {
@@ -87,8 +91,15 @@ class PointsController {
             .where('uf', String(uf))
             .distinct()
             .select('point.*');
+
+        const serializedPoints = points.map( point => {
+            return {
+                ...point,
+                image_url: `http://192.168.1.113:3333/uploads/${point.image}`
+            };
+        });
         
-        return response.json(points);
+        return response.json(serializedPoints);
     }
 }
 
